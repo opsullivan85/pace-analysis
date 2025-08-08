@@ -9,5 +9,15 @@
   "workspaceFolder": "/${localWorkspaceFolderBasename}",
   "mounts": [
     "source=${localEnv:HOME}${localEnv:USERPROFILE}/.bash_history,target=/home/vscode/.bash_history,type=bind"
-  ]
+  ],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.debugpy",
+        "njpwerner.autodocstring",
+        "mhutchie.git-graph"
+      ]
+    }
+  }
 }
