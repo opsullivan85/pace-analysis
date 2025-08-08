@@ -25,14 +25,22 @@ RUN sudo usermod --append --groups video $USERNAME
 RUN sudo apt update && sudo apt upgrade -y
 
 # Install Git
-RUN sudo apt install -y git
+RUN sudo apt install -y \
+    git \
+    python3-pip \
+    python3-tk \
+    texlive \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    dvipng \
+    cm-super
+
+RUN pip3 install \
+    SciencePlots \
+    latex
 
 # Rosdep update
 RUN rosdep update
 
 # Source the ROS setup file
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> ~/.bashrc
-
-################################
-## ADD ANY CUSTOM SETUP BELOW ##
-################################
