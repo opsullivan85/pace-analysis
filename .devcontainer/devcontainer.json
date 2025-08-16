@@ -18,6 +18,8 @@
       "extensions": [
         "ms-python.python",
         "ms-python.debugpy",
+        "ms-python.black-formatter",
+        "ms-python.isort",
         "njpwerner.autodocstring",
         "mhutchie.git-graph"
       ]

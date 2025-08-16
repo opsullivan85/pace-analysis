@@ -6,12 +6,24 @@ import rosbag
 import matplotlib.pyplot as plt
 import scienceplots
 from multiprocessing import Pool
+from dataclasses import dataclass, field
 
-def plot_topics(rosbag_path: Path, topics: list[str], label_map: dict[str, str], outpath: Path) -> None:
+@dataclass
+class PlotSettings:
+    rosbag_path: Path
+    topics: list[str]
+    label_map: dict[str, str]
+    outpath: Path
+    slip_regions: list[tuple[float, float]] = field(default_factory=list)
+    graph_range: tuple[float, float] = (0.0, 1.0)
+    legend_loc: str = "best"
+
+def plot_topics(settings: PlotSettings) -> None:
+    topics = settings.label_map.keys()
     plt.style.use(['ieee', 'grid'])
-    plt.rcParams['font.serif'] = ['Times New Roman']
+    # plt.rcParams['font.serif'] = ['Times New Roman']
 
-    bag = rosbag.Bag(str(rosbag_path))
+    bag = rosbag.Bag(str(settings.rosbag_path))
     topic_data = {topic: [] for topic in topics}
     time_data = {topic: [] for topic in topics}
     t_zero = None
@@ -20,25 +32,21 @@ def plot_topics(rosbag_path: Path, topics: list[str], label_map: dict[str, str],
         if t_zero is None:
             t_zero = t.to_sec()
         value = getattr(msg, 'data', None)
-        if value is not None:
-            if hasattr(value, '__iter__') and not isinstance(value, (str, bytes)):
-                topic_data[topic].append(list(value))
-            else:
-                topic_data[topic].append(value)
-            time_data[topic].append(t.to_sec() - t_zero)
+        dt = t.to_sec() - t_zero
+        if hasattr(value, '__iter__') and not isinstance(value, (str, bytes)):
+            topic_data[topic].append(list(value))
         else:
-            if hasattr(msg, 'x') and hasattr(msg, 'y') and hasattr(msg, 'z'):
-                topic_data[topic].append([msg.x, msg.y, msg.z])
-                time_data[topic].append(t.to_sec())
+            topic_data[topic].append(value)
+        time_data[topic].append(dt)
     
     if not any(topic_data[topic] for topic in topics):
-        print(f"No numeric data found in topics {topics} of bag {rosbag_path.name}.")
+        print(f"No numeric data found in topics {topics} of bag {settings.rosbag_path.name}.")
 
     bag.close()
 
     plt.figure(figsize=(5, 3))
     for topic in topics:
-        topic_label = label_map[topic] if topic in label_map else topic
+        topic_label = settings.label_map[topic] if topic in settings.label_map else topic
         if topic_data[topic]:
             if isinstance(topic_data[topic][0], (list, tuple)):
                 arr = topic_data[topic]
@@ -49,24 +57,32 @@ def plot_topics(rosbag_path: Path, topics: list[str], label_map: dict[str, str],
                     plt.plot(time_data[topic], dim, label=f"{topic_label} {labels[i]}")
             else:
                 plt.plot(time_data[topic], topic_data[topic], label=topic_label)
+    
+    # draw an opaque red rectangle for slip regions
+    for i, slip_region in enumerate(settings.slip_regions):
+        label = None
+        if i == 0:
+            label = 'Slip Regions' if len(settings.slip_regions) > 1 else 'Slip Region'
+        plt.axvspan(slip_region[0], slip_region[1], color='red', alpha=0.3, label=label)
+    
     plt.xlabel("Time [s]")
+    plt.xlim(settings.graph_range)
     plt.ylabel("Value")
-    plt.legend(loc="lower left")
+    plt.legend(loc=settings.legend_loc if settings.legend_loc else 'best')
     plt.tight_layout()
-    plt.savefig(outpath)
+    plt.savefig(settings.outpath)
     plt.close()
 
-def process_bag(args):
-    bag_path, topics, label_map, outpath = args
+def process_bag(settings: PlotSettings) -> None:
     try:
-        with rosbag.Bag(str(bag_path)) as bag:
+        with rosbag.Bag(str(settings.rosbag_path)) as bag:
             if bag.get_message_count() == 0:
-                print(f"Skipping empty bag file: {bag_path.name}")
+                print(f"Skipping empty bag file: {settings.rosbag_path.name}")
                 return
-        print(f"Processing {bag_path.name}")
-        plot_topics(bag_path, topics, label_map, outpath)
+        print(f"Processing {settings.rosbag_path.name}")
+        plot_topics(settings)
     except rosbag.bag.ROSBagException:
-        print(f"Skipping invalid/corrupted bag file: {bag_path.name}")
+        print(f"Skipping invalid/corrupted bag file: {settings.rosbag_path.name}")
 
 def main() -> None:
     (Path(src.__file__).parent.parent / "images").mkdir(exist_ok=True)
@@ -77,30 +93,24 @@ def main() -> None:
     data_dir = Path(src.__file__).parent.parent / "data"
     rosbags = list(data_dir.glob("*.bag"))
 
-    if not rosbags:
-        rospy.logwarn("No ROS bag files found in the data directory.")
-        return
-
-    # topics = ["/contact_estimation/leg1_contact"]  # Replace with actual topics you want to plot
     label_map = {
         "/contact_estimation/leg1_contact": "Leg 1 Contact",
         "/contact_estimation/leg2_contact": "Leg 2 Contact",
-        "/contact_estimation/leg3_contact": "Leg 3 Contact",
-        "/contact_estimation/leg4_contact": "Leg 4 Contact",
     }
-    topics = list(label_map.keys())
-    args_list = [
-        (
-            bag_path,
-            topics,
-            label_map,
-            (Path(src.__file__).parent.parent / "images" / bag_path.stem).with_suffix('.png')
+    settings_list = [
+        PlotSettings(
+            rosbag_path=rosbag_,
+            topics=list(label_map.keys()),
+            label_map=label_map,
+            outpath=Path(src.__file__).parent.parent / "images" / f"{rosbag_.stem}.png",
+            slip_regions=[(0.0, 1.0), (2.0, 3.0)],  # Example slip regions
+            graph_range=(0, 5)  # Example graph range
         )
-        for bag_path in rosbags
+        for rosbag_ in rosbags
     ]
 
     with Pool() as pool:
-        pool.map(process_bag, args_list)
+        pool.map(process_bag, settings_list)
 
 if __name__ == "__main__":
     main()
