@@ -7,21 +7,26 @@ import matplotlib.pyplot as plt
 import scienceplots
 from multiprocessing import Pool
 from dataclasses import dataclass, field
+import yaml
+
+plt.style.use(['ieee', 'grid'])
 
 @dataclass
 class PlotSettings:
     rosbag_path: Path
     topics: list[str]
     label_map: dict[str, str]
-    outpath: Path
+    outpath: Path = None
     slip_regions: list[tuple[float, float]] = field(default_factory=list)
     graph_range: tuple[float, float] = (0.0, 1.0)
     legend_loc: str = "best"
 
+    def __post_init__(self):
+        if self.outpath is None:
+            self.outpath = (Path(src.__file__).parent.parent / "images" / self.rosbag_path.name).with_suffix('.png')
+
 def plot_topics(settings: PlotSettings) -> None:
     topics = settings.label_map.keys()
-    plt.style.use(['ieee', 'grid'])
-    # plt.rcParams['font.serif'] = ['Times New Roman']
 
     bag = rosbag.Bag(str(settings.rosbag_path))
     topic_data = {topic: [] for topic in topics}
@@ -81,8 +86,29 @@ def process_bag(settings: PlotSettings) -> None:
                 return
         print(f"Processing {settings.rosbag_path.name}")
         plot_topics(settings)
+        print(f"Done processing {settings.rosbag_path.name}")
     except rosbag.bag.ROSBagException:
         print(f"Skipping invalid/corrupted bag file: {settings.rosbag_path.name}")
+
+def load_settings_from_yaml(yaml_path: Path, data_dir: Path) -> list[PlotSettings]:
+    with open(yaml_path, "r") as f:
+        config = yaml.safe_load(f)
+    settings_list = []
+    # Support multiple PlotSettings per yaml file
+    configs = config if isinstance(config, list) else [config]
+    for entry in configs:
+        rosbag_path = data_dir / entry["rosbag_path"]
+        settings = PlotSettings(
+            rosbag_path=rosbag_path,
+            topics=entry.get("topics", []),
+            label_map=entry.get("label_map", {}),
+            outpath=entry.get("outpath", None),
+            slip_regions=[tuple(region) for region in entry.get("slip_regions", [])],
+            graph_range=tuple(entry.get("graph_range", (0.0, 1.0))),
+            legend_loc=entry.get("legend_loc", "best")
+        )
+        settings_list.append(settings)
+    return settings_list
 
 def main() -> None:
     (Path(src.__file__).parent.parent / "images").mkdir(exist_ok=True)
@@ -91,24 +117,15 @@ def main() -> None:
         img_file.unlink()
 
     data_dir = Path(src.__file__).parent.parent / "data"
-    rosbags = list(data_dir.glob("*.bag"))
+    settings_dir = Path(src.__file__).parent.parent / "plot_settings"
+    yamls = list(settings_dir.glob("*.yaml"))
 
-    label_map = {
-        "/contact_estimation/leg1_contact": "Leg 1 Contact",
-        "/contact_estimation/leg2_contact": "Leg 2 Contact",
-    }
-    settings_list = [
-        PlotSettings(
-            rosbag_path=rosbag_,
-            topics=list(label_map.keys()),
-            label_map=label_map,
-            outpath=Path(src.__file__).parent.parent / "images" / f"{rosbag_.stem}.png",
-            slip_regions=[(0.0, 1.0), (2.0, 3.0)],  # Example slip regions
-            graph_range=(0, 5)  # Example graph range
-        )
-        for rosbag_ in rosbags
-    ]
+    # Collect PlotSettings from all yaml files
+    settings_list = []
+    for yaml_file in yamls:
+        settings_list.extend(load_settings_from_yaml(yaml_file, data_dir))
 
+    # print(settings_list)
     with Pool() as pool:
         pool.map(process_bag, settings_list)
 
