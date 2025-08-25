@@ -18,12 +18,13 @@ class PlotSettings:
     label_map: dict[str, str]
     outpath: Path = None
     slip_regions: list[tuple[float, float]] = field(default_factory=list)
-    graph_range: tuple[float, float] = (0.0, 1.0)
+    graph_range: tuple[float, float] = None  # Changed default to None
     legend_loc: str = "best"
 
     def __post_init__(self):
         if self.outpath is None:
-            self.outpath = (Path(src.__file__).parent.parent / "images" / self.rosbag_path.name).with_suffix('.png')
+            self.outpath = self.rosbag_path.name.with_suffix('.png')
+        self.outpath = Path(src.__file__).parent.parent / "images" / self.outpath
 
 def plot_topics(settings: PlotSettings) -> None:
     topics = settings.label_map.keys()
@@ -33,7 +34,29 @@ def plot_topics(settings: PlotSettings) -> None:
     time_data = {topic: [] for topic in topics}
     t_zero = None
 
-    for topic, msg, t in bag.read_messages(topics=topics):
+    # Determine time window for reading messages
+    t_zero = None
+    if settings.graph_range is not None:
+        # Find t_zero first to compute absolute start/end times
+        for topic, msg, t in bag.read_messages(topics=topics):
+            t_zero = t.to_sec()
+            break
+        if t_zero is not None:
+            start_time = rospy.Time.from_sec(t_zero + settings.graph_range[0])
+            end_time = rospy.Time.from_sec(t_zero + settings.graph_range[1])
+        else:
+            # No messages found, skip plotting
+            bag.close()
+            print(f"No messages found in topics {topics} of bag {settings.rosbag_path.name}.")
+            return
+        # Re-open bag to reset iterator
+        bag.close()
+        bag = rosbag.Bag(str(settings.rosbag_path))
+        msg_iter = bag.read_messages(topics=topics, start_time=start_time, end_time=end_time)
+    else:
+        msg_iter = bag.read_messages(topics=topics)
+
+    for topic, msg, t in msg_iter:
         if t_zero is None:
             t_zero = t.to_sec()
         value = getattr(msg, 'data', None)
@@ -43,7 +66,7 @@ def plot_topics(settings: PlotSettings) -> None:
         else:
             topic_data[topic].append(value)
         time_data[topic].append(dt)
-    
+
     if not any(topic_data[topic] for topic in topics):
         print(f"No numeric data found in topics {topics} of bag {settings.rosbag_path.name}.")
 
@@ -71,7 +94,8 @@ def plot_topics(settings: PlotSettings) -> None:
         plt.axvspan(slip_region[0], slip_region[1], color='red', alpha=0.3, label=label)
     
     plt.xlabel("Time [s]")
-    plt.xlim(settings.graph_range)
+    if settings.graph_range is not None:
+        plt.xlim(settings.graph_range)
     plt.ylabel("Value")
     plt.legend(loc=settings.legend_loc if settings.legend_loc else 'best')
     plt.tight_layout()
@@ -94,7 +118,6 @@ def load_settings_from_yaml(yaml_path: Path, data_dir: Path) -> list[PlotSetting
     with open(yaml_path, "r") as f:
         config = yaml.safe_load(f)
     settings_list = []
-    # Support multiple PlotSettings per yaml file
     configs = config if isinstance(config, list) else [config]
     for entry in configs:
         rosbag_path = data_dir / entry["rosbag_path"]
@@ -104,7 +127,7 @@ def load_settings_from_yaml(yaml_path: Path, data_dir: Path) -> list[PlotSetting
             label_map=entry.get("label_map", {}),
             outpath=entry.get("outpath", None),
             slip_regions=[tuple(region) for region in entry.get("slip_regions", [])],
-            graph_range=tuple(entry.get("graph_range", (0.0, 1.0))),
+            graph_range=tuple(entry["graph_range"]) if "graph_range" in entry else None,  # Updated to None if missing
             legend_loc=entry.get("legend_loc", "best")
         )
         settings_list.append(settings)

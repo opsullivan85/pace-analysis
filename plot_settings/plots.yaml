@@ -1,22 +1,9 @@
-- rosbag_path: 2025-07-06-18-22-19.bag
-  topics:
-    - /contact_estimation/leg1_contact
-    - /contact_estimation/leg2_contact
+- rosbag_path: 2025-08-16-16-07-11.bag
+  outpath: test.png
   label_map:
-    /contact_estimation/leg1_contact: "Leg 1 Contact"
-    /contact_estimation/leg2_contact: "Leg 2 Contact"
+    /contact_estimation/leg_contact: "Leg Contact"
   slip_regions:
     - [2.5, 3.7]
     - [5.0, 5.8]
-  graph_range: [0, 10]
+  graph_range: [8.6, 8.8]
   legend_loc: lower left
-
-- rosbag_path: 2025-07-06-19-00-09.bag
-  topics:
-    - /contact_estimation/leg1_contact
-  label_map:
-    /contact_estimation/leg1_contact: "Leg 1 Contact"
-  slip_regions:
-    - [1.0, 2.0]
-  graph_range: [0, 5]
-  legend_loc: lower center
