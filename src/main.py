@@ -8,6 +8,9 @@ import scienceplots
 from multiprocessing import Pool
 from dataclasses import dataclass, field
 import yaml
+import logging
+
+logging.getLogger('matplotlib.font_manager').disabled = True
 
 plt.style.use(['ieee', 'grid'])
 
@@ -20,6 +23,7 @@ class PlotSettings:
     slip_regions: list[tuple[float, float]] = field(default_factory=list)
     graph_range: tuple[float, float] = None  # Changed default to None
     legend_loc: str = "best"
+    epoc_time: bool = False
 
     def __post_init__(self):
         if self.outpath is None:
@@ -56,9 +60,13 @@ def plot_topics(settings: PlotSettings) -> None:
     else:
         msg_iter = bag.read_messages(topics=topics)
 
+    if settings.epoc_time:
+        t_zero = 0.0
+        
     for topic, msg, t in msg_iter:
         if t_zero is None:
             t_zero = t.to_sec()
+            print(f"t_zero set to {t_zero} for bag {settings.rosbag_path.name}")
         value = getattr(msg, 'data', None)
         dt = t.to_sec() - t_zero
         if hasattr(value, '__iter__') and not isinstance(value, (str, bytes)):
@@ -128,7 +136,8 @@ def load_settings_from_yaml(yaml_path: Path, data_dir: Path) -> list[PlotSetting
             outpath=entry.get("outpath", None),
             slip_regions=[tuple(region) for region in entry.get("slip_regions", [])],
             graph_range=tuple(entry["graph_range"]) if "graph_range" in entry else None,  # Updated to None if missing
-            legend_loc=entry.get("legend_loc", "best")
+            legend_loc=entry.get("legend_loc", "best"),
+            epoc_time=entry.get("epoc_time", False)
         )
         settings_list.append(settings)
     return settings_list

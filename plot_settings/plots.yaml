@@ -1,9 +1,17 @@
 - rosbag_path: 2025-08-16-16-07-11.bag
-  outpath: test.png
+  outpath: all1.png
   label_map:
-    /contact_estimation/leg_contact: "Leg Contact"
-  slip_regions:
-    - [2.5, 3.7]
-    - [5.0, 5.8]
-  graph_range: [8.6, 8.8]
-  legend_loc: lower left
+    /contact_estimation/leg_contact_prob: "Leg Contact Prob"
+  # epoc_time: true
+
+- rosbag_path: 2025-08-16-16-09-03.bag
+  outpath: all2.png
+  label_map:
+    /contact_estimation/leg_contact_prob: "Leg Contact Prob"
+  # epoc_time: true
+
+- rosbag_path: 2025-08-16-16-40-58.bag
+  outpath: all3.png
+  label_map:
+    /contact_estimation/leg_contact_prob: "Leg Contact Prob"
+  # epoc_time: true
