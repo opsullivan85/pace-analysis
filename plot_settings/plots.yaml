@@ -1,17 +1,19 @@
-- rosbag_path: 2025-08-16-16-07-11.bag
-  outpath: all1.png
-  label_map:
-    /contact_estimation/leg_contact_prob: "Leg Contact Prob"
-  # epoc_time: true
+# - rosbag_path: 2025-07-06-19-00-09.bag
+#   outpath: all1.png
+#   label_map:
+#     /contact_estimation/leg_contact_prob[1]: "Leg 2 Contact"
+#   slip_regions:
+#     - [1.0, 2.0]
+#     - [3.0, 4.0]
+#   graph_range: [0, 5]
+#   legend_loc: lower center
+#   epoc_time: True
 
-- rosbag_path: 2025-08-16-16-09-03.bag
-  outpath: all2.png
+- rosbag_path: 2025-08-16-15-21-56.bag
   label_map:
-    /contact_estimation/leg_contact_prob: "Leg Contact Prob"
-  # epoc_time: true
-
-- rosbag_path: 2025-08-16-16-40-58.bag
-  outpath: all3.png
-  label_map:
-    /contact_estimation/leg_contact_prob: "Leg Contact Prob"
-  # epoc_time: true
+    /contact_estimation/leg_force_sensor[1]: "force"
+    # /contact_estimation/leg_contact_prob[1]: "FR Leg Contact Prob"
+  epoc_time: True
+  graph_range: [1755372133.091, 1755372135.091]
+  slip_regions:
+    - [1755372134.091, 1755372134.1]
