@@ -3,6 +3,8 @@ import src
 import rospy
 from pathlib import Path
 import rosbag
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import scienceplots
 from multiprocessing import Pool
@@ -202,9 +204,9 @@ def load_settings_from_yaml(yaml_path: Path, data_dir: Path) -> list[PlotSetting
 
 def main() -> None:
     (Path(src.__file__).parent.parent / "images").mkdir(exist_ok=True)
-    # remove contentant of images directory
-    for img_file in (Path(src.__file__).parent.parent / "images").glob("*.png"):
-        img_file.unlink()
+    # # remove contentant of images directory
+    # for img_file in (Path(src.__file__).parent.parent / "images").glob("*.png"):
+    #     img_file.unlink()
 
     data_dir = Path(src.__file__).parent.parent / "data"
     settings_dir = Path(src.__file__).parent.parent / "plot_settings"
