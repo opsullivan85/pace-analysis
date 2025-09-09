@@ -28,6 +28,8 @@ class PlotSettings:
     graph_range: tuple[float, float] = None  # Changed default to None
     legend_loc: str = "best"
     epoc_time: bool = False
+    fake_start_time: float | None = None
+    sub_plots: bool = False
 
     def __post_init__(self):
         if self.outpath is None:
@@ -119,12 +121,28 @@ def plot_topics(settings: PlotSettings) -> None:
 
     bag.close()
 
-    plt.figure(figsize=(5, 3))
+    if settings.sub_plots:
+        num_topics = len(actual_topics)
+        if num_topics == 0:
+            print("No topics to plot.")
+            return
+        fig, axes = plt.subplots(num_topics, 1, figsize=(5, 3*num_topics), sharex=True, constrained_layout=True)
+        if num_topics == 1:
+            axes = [axes]
+    else:
+        fig, axes = plt.subplots(1, 1, figsize=(5, 3), constrained_layout=True)
+        axes = [axes]
+    topic_list = list(actual_topics)
     
     # Plot data according to the label_map specifications
     for topic_name, index_label_pairs in topic_info.items():
         if not topic_data[topic_name]:
             continue
+        if settings.sub_plots:
+            i = topic_list.index(topic_name)
+            ax = axes[i]
+        else:
+            ax = axes[0]
             
         # Check if data is array-like
         if isinstance(topic_data[topic_name][0], (list, tuple)):
@@ -138,11 +156,11 @@ def plot_topics(settings: PlotSettings) -> None:
                     # Plot all dimensions with auto-generated labels
                     labels = [f"[{i}]" for i in range(len(arr))]
                     for i, dim in enumerate(arr):
-                        plt.plot(time_data[topic_name], dim, label=f"{label} {labels[i]}")
+                        ax.plot(time_data[topic_name], dim, label=f"{label} {labels[i]}")
                 else:
                     # Plot only the specified index
                     if index < len(arr):
-                        plt.plot(time_data[topic_name], arr[index], label=label)
+                        ax.plot(time_data[topic_name], arr[index], label=label)
                     else:
                         print(f"Warning: Index {index} out of range for topic {topic_name} (has {len(arr)} dimensions)")
         else:
@@ -150,23 +168,42 @@ def plot_topics(settings: PlotSettings) -> None:
             for index, label in index_label_pairs:
                 if index is None:
                     # Plot the scalar data
-                    plt.plot(time_data[topic_name], topic_data[topic_name], label=label)
+                    ax.plot(time_data[topic_name], topic_data[topic_name], label=label)
                 else:
                     print(f"Warning: Index {index} specified for scalar topic {topic_name}")
     
     # draw an opaque red rectangle for slip regions
-    for i, slip_region in enumerate(settings.slip_regions):
-        label = None
-        if i == 0:
-            label = 'Slip Regions' if len(settings.slip_regions) > 1 else 'Slip Region'
-        plt.axvspan(slip_region[0], slip_region[1], color='red', alpha=0.3, label=label)
+    for ax in axes:
+        for i, slip_region in enumerate(settings.slip_regions):
+            label = None
+            if i == 0:
+                label = 'Slip Regions' if len(settings.slip_regions) > 1 else 'Slip Region'
+            ax.axvspan(slip_region[0], slip_region[1], color='red', alpha=0.3, label=label)
     
-    plt.xlabel("Time [s]")
-    if settings.graph_range is not None:
-        plt.xlim(settings.graph_range)
-    plt.ylabel("Value")
-    plt.legend(loc=settings.legend_loc if settings.legend_loc else 'best')
-    plt.tight_layout()
+    if settings.fake_start_time is not None:
+        # Adjust x ticks and labels based on fake_start_time
+        x_ticks = [t/2 for t in range(int(settings.graph_range[0])*2, int(settings.graph_range[1])*2+1, 1)]
+        x_labels = [f"{t - x_ticks[0] + settings.fake_start_time:.1f}" for t in x_ticks]
+        for ax in axes:
+            ax.set_xticks(x_ticks)
+            ax.set_xticklabels(x_labels)
+    
+    if settings.sub_plots:
+        for ax in axes[:-1]:
+            ax.set_xlabel("")
+        axes[-1].set_xlabel("Time [s]")
+    else:
+        axes[0].set_xlabel("Time [s]")
+    
+    for ax in axes:
+        if settings.graph_range is not None:
+            ax.set_xlim(settings.graph_range)
+        ax.set_ylim((-0.1, 1.25))
+        ax.set_ylabel("Contact State")
+        ax.set_yticks([0, 1])
+        ax.set_yticklabels(["No Contact", "Contact"], rotation=45)
+        ax.legend(loc=settings.legend_loc if settings.legend_loc else 'best')
+    
     plt.savefig(settings.outpath)
     plt.close()
 
@@ -197,7 +234,9 @@ def load_settings_from_yaml(yaml_path: Path, data_dir: Path) -> list[PlotSetting
             slip_regions=[tuple(region) for region in entry.get("slip_regions", [])],
             graph_range=tuple(entry["graph_range"]) if "graph_range" in entry else None,  # Updated to None if missing
             legend_loc=entry.get("legend_loc", "best"),
-            epoc_time=entry.get("epoc_time", False)
+            epoc_time=entry.get("epoc_time", False),
+            fake_start_time=entry.get("fake_start_time", None),
+            sub_plots=entry.get("sub_plots", False),
         )
         settings_list.append(settings)
     return settings_list
