@@ -1,0 +1,35 @@
+# - rosbag_path: 2025-07-06-19-00-09.bag
+#   outpath: all1.png
+#   label_map:
+#     /contact_estimation/leg_contact_prob[1]: "Leg 2 Contact"
+#   slip_regions:
+#     - [1.0, 2.0]
+#     - [3.0, 4.0]
+#   graph_range: [0, 5]
+#   legend_loc: lower center
+#   epoc_time: True
+
+- rosbag_path: 2025-08-16-16-03-29.bag
+  outpath: contact_all.png
+  label_map:
+    /contact_estimation/leg_contact_time_prob[0]: "FL Leg Contact Control"
+    /contact_estimation/leg_contact[0]: "FL Leg Contact w/ Map Analysis"
+  legend_loc: upper right
+  epoc_time: True
+  fake_start_time: 13
+  graph_range: [1755374623.500, 1755374628.500]
+  slip_regions:
+    # - [1755374623.728,1755374623.895]
+    # - [1755374624.398,1755374624.598]
+    # - [1755374624.847,1755374625.014]
+    # - [1755374625.412,1755374625.612]
+    # - [1755374626.078,1755374626.245]
+    # - [1755374626.748,1755374626.915]
+    # - [1755374627.948,1755374628.115]
+    - [1755374623.728,1755374623.995]
+    - [1755374624.398,1755374624.598]
+    - [1755374624.847,1755374625.014]
+    - [1755374625.412,1755374625.612]
+    - [1755374626.078,1755374626.245]
+    - [1755374626.748,1755374626.915]
+    - [1755374627.948,1755374628.115]

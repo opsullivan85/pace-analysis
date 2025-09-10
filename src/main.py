@@ -109,6 +109,10 @@ def plot_topics(settings: PlotSettings) -> None:
             t_zero = t.to_sec()
             print(f"t_zero set to {t_zero} for bag {settings.rosbag_path.name}")
         value = getattr(msg, 'data', None)
+
+        if topic == "/contact_estimation/leg_contact_time_prob":
+            value = [v > 0.8 for v in value]
+
         dt = t.to_sec() - t_zero
         if hasattr(value, '__iter__') and not isinstance(value, (str, bytes)):
             topic_data[topic].append(list(value))
@@ -198,7 +202,7 @@ def plot_topics(settings: PlotSettings) -> None:
     for ax in axes:
         if settings.graph_range is not None:
             ax.set_xlim(settings.graph_range)
-        ax.set_ylim((-0.1, 1.25))
+        ax.set_ylim((-0.1, 1.38))
         ax.set_ylabel("Contact State")
         ax.set_yticks([0, 1])
         ax.set_yticklabels(["No Contact", "Contact"], rotation=45)
